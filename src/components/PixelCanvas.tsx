@@ -67,6 +67,9 @@ const PixelCanvasApp: React.FC = () => {
   // UI state
   const [userInfoCollapsed, setUserInfoCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Premium mode state
@@ -83,20 +86,45 @@ const PixelCanvasApp: React.FC = () => {
   const isPlacingPixel = false;
 
   // Event handlers
-  const handleCanvasMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = Math.floor((event.clientX - rect.left) / (PIXEL_SIZE * zoom));
-    const y = Math.floor((event.clientY - rect.top) / (PIXEL_SIZE * zoom));
-    if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
-      setHoveredPixel({ x, y });
-    } else {
-      setHoveredPixel(null);
+  const handleCanvasMouseLeave = () => {
+    setHoveredPixel(null);
+    setIsDragging(false);
+  };
+
+  const handleCanvasMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (event.button === 0) { // Left click only
+      setIsDragging(true);
+      setDragStart({ x: event.clientX, y: event.clientY });
     }
   };
 
-  const handleCanvasMouseLeave = () => {
-    setHoveredPixel(null);
+  const handleCanvasMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current) return;
+    
+    if (isDragging) {
+      const deltaX = event.clientX - dragStart.x;
+      const deltaY = event.clientY - dragStart.y;
+      
+      setCanvasOffset(prev => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY
+      }));
+      
+      setDragStart({ x: event.clientX, y: event.clientY });
+    } else {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = Math.floor((event.clientX - rect.left) / (PIXEL_SIZE * zoom));
+      const y = Math.floor((event.clientY - rect.top) / (PIXEL_SIZE * zoom));
+      if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
+        setHoveredPixel({ x, y });
+      } else {
+        setHoveredPixel(null);
+      }
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    setIsDragging(false);
   };
 
   const handleCanvasWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
@@ -113,6 +141,8 @@ const PixelCanvasApp: React.FC = () => {
 
   // Canvas click handler
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isDragging) return; // Don't place pixel if dragging
+    
     if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = Math.floor((event.clientX - rect.left) / (PIXEL_SIZE * zoom));
@@ -257,6 +287,8 @@ const PixelCanvasApp: React.FC = () => {
           // Mobile layout
           container.style.padding = '10px';
           container.style.paddingTop = '60px'; // Space for connect button
+          container.style.overflow = 'visible';
+          container.style.minHeight = '100vh';
           
           // Connect button - top center
           connectButtonContainer.style.position = 'fixed';
@@ -281,6 +313,7 @@ const PixelCanvasApp: React.FC = () => {
           canvasContainer.style.alignItems = 'center';
           canvasContainer.style.justifyContent = 'center';
           canvasContainer.style.marginBottom = '20px';
+          canvasContainer.style.overflow = 'hidden';
           
           // User info panel - bottom
           userInfoPanel.style.position = 'fixed';
@@ -296,6 +329,9 @@ const PixelCanvasApp: React.FC = () => {
           userInfoPanel.style.overflowY = 'auto';
           
         } else {
+          // Desktop layout
+          container.style.overflow = 'visible';
+          container.style.minHeight = '100vh';
           
           // Connect button - top right
           connectButtonContainer.style.position = 'fixed';
@@ -320,6 +356,7 @@ const PixelCanvasApp: React.FC = () => {
           canvasContainer.style.alignItems = 'unset';
           canvasContainer.style.justifyContent = 'unset';
           canvasContainer.style.marginBottom = '0';
+          canvasContainer.style.overflow = 'hidden';
           
           // User info panel - right side
           userInfoPanel.style.position = 'fixed';
@@ -344,7 +381,12 @@ const PixelCanvasApp: React.FC = () => {
 
   // Render
   return (
-    <div style={styles.container} data-pixel-container>
+    <div style={{
+      ...styles.container,
+      overflow: 'visible',
+      overflowX: zoom > 1 ? 'auto' : 'hidden',
+      minHeight: '100vh',
+    }} data-pixel-container>
       {!isConnected ? (
         <div style={{
           ...styles.container,
@@ -424,15 +466,25 @@ const PixelCanvasApp: React.FC = () => {
               ...styles.canvasContainer,
               width: `${DISPLAY_WIDTH}px`,
               height: `${DISPLAY_HEIGHT}px`,
-              transform: `rotate(${canvasRotation}deg)`,
+              transform: `rotate(${canvasRotation}deg) translate(${canvasOffset.x}px, ${canvasOffset.y}px)`,
               transition: isCanvasSpinning ? 'none' : 'transform 0.5s ease-out',
+              overflow: 'hidden',
+              position: 'relative',
+              right: '200px',
+              marginLeft: 'auto',
+              marginRight: '200px',
+              minWidth: `${DISPLAY_WIDTH}px`,
+              cursor: isDragging ? 'grabbing' : 'grab',
               ...(isMobile && {
                 maxWidth: '100vw',
-                maxHeight: '60vh',
+                maxHeight: '80vh',
                 width: 'auto',
                 height: 'auto',
                 aspectRatio: '1',
                 margin: '0 auto',
+                right: 'auto',
+                marginRight: 'auto',
+                minWidth: 'auto',
               })
             }}
             data-canvas-container
@@ -444,10 +496,12 @@ const PixelCanvasApp: React.FC = () => {
               onClick={handleCanvasClick}
               onMouseMove={handleCanvasMouseMove}
               onMouseLeave={handleCanvasMouseLeave}
+              onMouseUp={handleCanvasMouseUp}
+              onMouseDown={handleCanvasMouseDown}
               onWheel={handleCanvasWheel}
               style={{
                 ...styles.canvas,
-                cursor: cooldownRemaining > 0 ? 'not-allowed' : 'crosshair',
+                cursor: cooldownRemaining > 0 ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
                 ...(isMobile && {
                   maxWidth: '100%',
                   maxHeight: '100%',
@@ -457,71 +511,90 @@ const PixelCanvasApp: React.FC = () => {
                 })
               }}
             />
-            <div style={{
-              textAlign: 'center',
-              marginTop: '8px',
-              fontSize: isMobile ? '0.8rem' : '0.9rem',
-              color: 'rgba(255, 255, 255, 0.7)',
-              fontFamily: 'Fira Code, monospace',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: isMobile ? '4px' : '8px',
-              flexWrap: 'wrap',
-              padding: isMobile ? '0 10px' : '0',
-            }}>
-              <button
-                onClick={() => setZoom(Math.max(MIN_ZOOM, zoom - 0.1))}
-                style={{
-                  background: 'rgba(147, 51, 234, 0.2)',
-                  border: '1px solid rgba(147, 51, 234, 0.4)',
-                  borderRadius: '4px',
-                  color: '#c084fc',
-                  padding: isMobile ? '4px 8px' : '2px 6px',
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '0.9rem' : '0.8rem',
-                  minWidth: isMobile ? '32px' : 'auto',
-                  touchAction: 'manipulation',
-                }}
-              >
-                -
-              </button>
-              <span style={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                🔍 {(zoom * 100).toFixed(0)}%
-              </span>
-              <button
-                onClick={() => setZoom(Math.min(MAX_ZOOM, zoom + 0.1))}
-                style={{
-                  background: 'rgba(147, 51, 234, 0.2)',
-                  border: '1px solid rgba(147, 51, 234, 0.4)',
-                  borderRadius: '4px',
-                  color: '#c084fc',
-                  padding: isMobile ? '4px 8px' : '2px 6px',
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '0.9rem' : '0.8rem',
-                  minWidth: isMobile ? '32px' : 'auto',
-                  touchAction: 'manipulation',
-                }}
-              >
-                +
-              </button>
-              <button
-                onClick={() => setZoom(1)}
-                style={{
-                  background: 'rgba(147, 51, 234, 0.2)',
-                  border: '1px solid rgba(147, 51, 234, 0.4)',
-                  borderRadius: '4px',
-                  color: '#c084fc',
-                  padding: isMobile ? '4px 8px' : '2px 6px',
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '0.9rem' : '0.8rem',
-                  minWidth: isMobile ? '50px' : 'auto',
-                  touchAction: 'manipulation',
-                }}
-              >
-                Reset
-              </button>
-            </div>
+          </div>
+
+          {/* Zoom Controls */}
+          <div style={{
+            textAlign: 'center',
+            marginTop: '8px',
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontFamily: 'Fira Code, monospace',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: isMobile ? '4px' : '8px',
+            flexWrap: 'wrap',
+            padding: '16px 0px',
+            width: `${DISPLAY_WIDTH}px`,
+            position: 'relative',
+            right: '200px',
+            marginLeft: 'auto',
+            marginRight: '200px',
+            transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px)`,
+            transition: isCanvasSpinning ? 'none' : 'transform 0.5s ease-out',
+            ...(isMobile && {
+              width: 'auto',
+              maxWidth: '100vw',
+              right: 'auto',
+              marginRight: 'auto',
+              transform: 'none',
+            })
+          }}>
+            <button
+              onClick={() => setZoom(Math.max(MIN_ZOOM, zoom - 0.1))}
+              style={{
+                background: 'rgba(147, 51, 234, 0.2)',
+                border: '1px solid rgba(147, 51, 234, 0.4)',
+                borderRadius: '4px',
+                color: '#c084fc',
+                padding: isMobile ? '4px 8px' : '2px 6px',
+                cursor: 'pointer',
+                fontSize: isMobile ? '0.9rem' : '0.8rem',
+                minWidth: isMobile ? '32px' : 'auto',
+                touchAction: 'manipulation',
+              }}
+            >
+              -
+            </button>
+            <span style={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
+              🔍 {(zoom * 100).toFixed(0)}%
+            </span>
+            <button
+              onClick={() => setZoom(Math.min(MAX_ZOOM, zoom + 0.1))}
+              style={{
+                background: 'rgba(147, 51, 234, 0.2)',
+                border: '1px solid rgba(147, 51, 234, 0.4)',
+                borderRadius: '4px',
+                color: '#c084fc',
+                padding: isMobile ? '4px 8px' : '2px 6px',
+                cursor: 'pointer',
+                fontSize: isMobile ? '0.9rem' : '0.8rem',
+                minWidth: isMobile ? '32px' : 'auto',
+                touchAction: 'manipulation',
+              }}
+            >
+              +
+            </button>
+            <button
+              onClick={() => {
+                setZoom(1);
+                setCanvasOffset({ x: 0, y: 0 });
+              }}
+              style={{
+                background: 'rgba(147, 51, 234, 0.2)',
+                border: '1px solid rgba(147, 51, 234, 0.4)',
+                borderRadius: '4px',
+                color: '#c084fc',
+                padding: isMobile ? '4px 8px' : '2px 6px',
+                cursor: 'pointer',
+                fontSize: isMobile ? '0.9rem' : '0.8rem',
+                minWidth: isMobile ? '50px' : 'auto',
+                touchAction: 'manipulation',
+              }}
+            >
+              Reset
+            </button>
           </div>
 
           {/* Easter Egg Particles */}
@@ -551,7 +624,7 @@ const PixelCanvasApp: React.FC = () => {
             position: 'fixed',
             bottom: isMobile ? '5px' : '10px',
             left: isMobile ? '5px' : '10px',
-            zIndex: 1000,
+            zIndex: 1,
             fontSize: isMobile ? '0.7rem' : '0.8rem',
             color: 'rgba(255, 255, 255, 0.6)',
             fontFamily: 'Fira Code, monospace',
