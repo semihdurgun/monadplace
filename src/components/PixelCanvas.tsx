@@ -501,7 +501,7 @@ const PixelCanvasApp: React.FC = () => {
               onWheel={handleCanvasWheel}
               style={{
                 ...styles.canvas,
-                cursor: cooldownRemaining > 0 ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
+                cursor: 'none', // Canvas üzerindeyken cursor'ı gizle
                 ...(isMobile && {
                   maxWidth: '100%',
                   maxHeight: '100%',
