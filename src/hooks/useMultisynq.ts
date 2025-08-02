@@ -102,8 +102,8 @@ export const useMultisynq = (burnAmountFormatted: string) => {
       }, 1000);
     };
 
-    // Start periodic reconnect every 30 seconds
-    reconnectIntervalRef.current = setInterval(performReconnect, 30000);
+    // Start periodic reconnect every 60 seconds
+    reconnectIntervalRef.current = setInterval(performReconnect, 60000);
 
     return () => {
       if (reconnectIntervalRef.current) {
