@@ -61,7 +61,8 @@ const PixelCanvasApp: React.FC = () => {
     setHoveredPixel,
     selectedColor,
     setSelectedColor,
-    sendUserAction
+    sendUserAction,
+    manualReconnect
   } = useMultisynq(burnAmountFormatted);
 
   // UI state
@@ -69,6 +70,7 @@ const PixelCanvasApp: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [mouseDownTime, setMouseDownTime] = useState(0);
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +97,7 @@ const PixelCanvasApp: React.FC = () => {
     if (event.button === 0) { // Left click only
       setIsDragging(true);
       setDragStart({ x: event.clientX, y: event.clientY });
+      setMouseDownTime(new Date().getTime());
     }
   };
 
@@ -124,7 +127,17 @@ const PixelCanvasApp: React.FC = () => {
   };
 
   const handleCanvasMouseUp = () => {
-    setIsDragging(false);
+    const mouseUpTime = new Date().getTime();
+    const clickDuration = mouseUpTime - mouseDownTime;
+    
+    // If click duration is very short (less than 150ms), it's likely a real click
+    // If longer, it was probably a drag
+    if (clickDuration > 150) {
+      setIsDragging(false);
+    } else {
+      // Short click - might be intentional, but we'll still check if we moved
+      setIsDragging(false);
+    }
   };
 
   const handleCanvasWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
@@ -141,7 +154,11 @@ const PixelCanvasApp: React.FC = () => {
 
   // Canvas click handler
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isDragging) return; // Don't place pixel if dragging
+    const clickTime = new Date().getTime();
+    const clickDuration = clickTime - mouseDownTime;
+    
+    // Don't place pixel if it was a long click (drag) or if we're still dragging
+    if (isDragging || clickDuration > 150) return;
     
     if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
@@ -365,7 +382,7 @@ const PixelCanvasApp: React.FC = () => {
           userInfoPanel.style.left = 'auto';
           userInfoPanel.style.bottom = 'auto';
           userInfoPanel.style.width = '280px';
-          userInfoPanel.style.marginTop = '60px';
+          userInfoPanel.style.marginTop = '0px';
           userInfoPanel.style.marginBottom = '0';
           userInfoPanel.style.maxHeight = 'none';
           userInfoPanel.style.overflowY = 'visible';
@@ -472,7 +489,7 @@ const PixelCanvasApp: React.FC = () => {
               position: 'relative',
               right: '200px',
               marginLeft: 'auto',
-              marginRight: '200px',
+              marginRight: '275px',
               minWidth: `${DISPLAY_WIDTH}px`,
               cursor: isDragging ? 'grabbing' : 'grab',
               ...(isMobile && {
@@ -530,7 +547,7 @@ const PixelCanvasApp: React.FC = () => {
             position: 'relative',
             right: '200px',
             marginLeft: 'auto',
-            marginRight: '200px',
+            marginRight: '275px',
             transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px)`,
             transition: isCanvasSpinning ? 'none' : 'transform 0.5s ease-out',
             ...(isMobile && {
@@ -666,9 +683,9 @@ const PixelCanvasApp: React.FC = () => {
                 <p style={styles.userInfoPanelText}>
                   ⏰ {cooldownRemaining > 0 ? `Cooldown: ${formatTime(cooldownRemaining)}` : '✅ Ready to place!'}
                 </p>
-                <p style={{...styles.userInfoPanelText, color: '#10b981', fontWeight: 'bold'}}>
+                {/* <p style={{...styles.userInfoPanelText, color: '#10b981', fontWeight: 'bold'}}>
                   👥 Online: {Math.floor((rootModel?.users?.size || 0) / 2)} users
-                </p>
+                </p> */}
                 <p style={{...styles.userInfoPanelText, color: '#c084fc', fontWeight: 'bold'}}>
                   🎨 Total Nads: {Object.keys(users).length} users
                 </p>
@@ -746,12 +763,33 @@ const PixelCanvasApp: React.FC = () => {
                   </div>
                 )}
                 
-                <p style={styles.userInfoPanelText}>🔥 Burn per pixel: {burnAmountFormatted} MON</p>
+                {/* <p style={styles.userInfoPanelText}>🔥 Burn per pixel: {burnAmountFormatted} MON</p> */}
                 {isPlacingPixel && (
                   <p style={{...styles.userInfoPanelText, color: '#a855f7'}}>
                     🔄 Placing pixel...
                   </p>
                 )}
+                
+                {/* Reconnect Button */}
+                <button
+                  onClick={manualReconnect}
+                  style={{
+                    background: 'rgba(147, 51, 234, 0.2)',
+                    border: '1px solid rgba(147, 51, 234, 0.4)',
+                    borderRadius: '8px',
+                    color: '#c084fc',
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    width: '100%',
+                    marginTop: '8px',
+                    transition: 'all 0.3s ease',
+                    fontFamily: 'Fira Code, monospace',
+                  }}
+                  title="Reconnect to Multisynq"
+                >
+                  🔄 Reconnect
+                </button>
                 
                 {/* Nads Leaderboard Section */}
                 <div style={{marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(147, 51, 234, 0.2)'}}>

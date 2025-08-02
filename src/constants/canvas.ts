@@ -1,7 +1,7 @@
 // Canvas Configuration
 export const CANVAS_WIDTH = 100; // 100x100 pixel grid
 export const CANVAS_HEIGHT = 100;
-export const PIXEL_SIZE = 8; // Reduced from 10 to 8 pixels on screen
+export const PIXEL_SIZE = 7.2; // Reduced from 10 to 8 pixels on screen
 export const COOLDOWN_TIME = 60; // 60 seconds between pixel placements
 export const MIN_ZOOM = 0.5;
 export const MAX_ZOOM = 3;

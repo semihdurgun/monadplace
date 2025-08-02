@@ -158,7 +158,7 @@ export const styles = {
     gap: '4px',
   },
   canvasContainer: {
-    borderRadius: '20px',
+    borderRadius: '5px',
     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(147, 51, 234, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
     border: '2px solid rgba(147, 51, 234, 0.4)',
     background: '#1a1a1a',
@@ -167,7 +167,7 @@ export const styles = {
     position: 'relative' as const,
   },
   canvas: {
-    borderRadius: '18px',
+    borderRadius: '5px',
     transition: 'all 0.3s ease',
     display: 'block',
   },
@@ -175,7 +175,7 @@ export const styles = {
     background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.15) 0%, rgba(139, 92, 246, 0.08) 100%)',
     border: '1px solid rgba(147, 51, 234, 0.25)',
     padding: '24px',
-    borderRadius: '20px',
+    borderRadius: '10px',
     margin: '32px auto',
     backdropFilter: 'blur(20px)',
     boxShadow: '0 8px 25px rgba(147, 51, 234, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)',

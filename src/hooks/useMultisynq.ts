@@ -26,6 +26,7 @@ export const useMultisynq = (burnAmountFormatted: string) => {
   const [zoom, setZoom] = useState(1);
   const [hoveredPixel, setHoveredPixel] = useState<{x: number, y: number} | null>(null);
   const [selectedColor, setSelectedColor] = useState(COLOR_PALETTE[0]);
+  const reconnectIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Multisynq initialization
   useEffect(() => {
@@ -50,6 +51,10 @@ export const useMultisynq = (burnAmountFormatted: string) => {
       if (session) {
         session.leave();
       }
+      if (reconnectIntervalRef.current) {
+        clearInterval(reconnectIntervalRef.current);
+        reconnectIntervalRef.current = null;
+      }
     };
   }, []);
 
@@ -63,6 +68,12 @@ export const useMultisynq = (burnAmountFormatted: string) => {
         setMyUserModel(null);
       }
       
+      // Clear any existing reconnect interval
+      if (reconnectIntervalRef.current) {
+        clearInterval(reconnectIntervalRef.current);
+        reconnectIntervalRef.current = null;
+      }
+      
       setTimeout(() => {
         if (window.Multisynq) {
           initPixelCanvas();
@@ -70,6 +81,37 @@ export const useMultisynq = (burnAmountFormatted: string) => {
       }, 500);
     }
   }, [isConnected, address]);
+
+  // Periodic reconnect every 30 seconds
+  useEffect(() => {
+    if (!isConnected || !address || !window.Multisynq) return;
+
+    const performReconnect = () => {
+      console.log('Performing periodic reconnect...');
+      if (session) {
+        session.leave();
+        setSession(null);
+        setRootModel(null);
+        setMyUserModel(null);
+      }
+      
+      setTimeout(() => {
+        if (window.Multisynq) {
+          initPixelCanvas();
+        }
+      }, 1000);
+    };
+
+    // Start periodic reconnect every 30 seconds
+    reconnectIntervalRef.current = setInterval(performReconnect, 30000);
+
+    return () => {
+      if (reconnectIntervalRef.current) {
+        clearInterval(reconnectIntervalRef.current);
+        reconnectIntervalRef.current = null;
+      }
+    };
+  }, [isConnected, address, session]);
 
   // Canvas drawing
   useEffect(() => {
@@ -497,6 +539,23 @@ export const useMultisynq = (burnAmountFormatted: string) => {
     }
   }, [session]);
 
+  // Manual reconnect function
+  const manualReconnect = useCallback(() => {
+    console.log('Manual reconnect triggered...');
+    if (session) {
+      session.leave();
+      setSession(null);
+      setRootModel(null);
+      setMyUserModel(null);
+    }
+    
+    setTimeout(() => {
+      if (window.Multisynq) {
+        initPixelCanvas();
+      }
+    }, 1000);
+  }, [session]);
+
   return {
     canvasRef,
     session,
@@ -510,6 +569,7 @@ export const useMultisynq = (burnAmountFormatted: string) => {
     setHoveredPixel,
     selectedColor,
     setSelectedColor,
-    sendUserAction
+    sendUserAction,
+    manualReconnect
   };
 }; 
